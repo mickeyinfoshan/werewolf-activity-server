@@ -1,6 +1,7 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from .models import Activity, Participation
+
 
 class PageRequest:
     page = 0
@@ -16,8 +17,10 @@ class PageRequest:
         except ValueError:
             self.page_size = 20
 
+
 def get_page_req(request):
     return PageRequest(request.GET.get("page", 0), request.GET.get("pageSize", 20))
+
 
 def plain_model(model):
     plain = model.__dict__.copy()
@@ -28,7 +31,8 @@ def plain_model(model):
         datetime_fields = model.get_datetime_fields()
         print(datetime_fields)
         for datetime_field in datetime_fields:
-            plain[datetime_field] = datetime_to_unix(getattr(model, datetime_field))
+            plain[datetime_field] = datetime_to_unix(
+                getattr(model, datetime_field))
     except:
         pass
 
@@ -48,6 +52,8 @@ def datetime_to_unix(dt):
     return int(dt.strftime("%s"))
 
 # Create your views here.
+
+
 def activity_list(request):
     page_req = get_page_req(request)
     start = page_req.page * page_req.page_size
@@ -57,12 +63,28 @@ def activity_list(request):
     for q in request.GET:
         if q not in except_query:
             selector[q] = request.GET[q]
-    activities = Activity.objects.filter(**selector).order_by("-created_at")[start:end]
-    res = []
-    for activity in activities:
-        participations = activity.participation_set.order_by("-created_at").all()
-        activity_res = plain_model(activity)
-        activity_res["members"] = [plain_model(p) for p in participations]
-        res.append(activity_res)
-            
+    activities = Activity.objects.filter(
+        **selector).order_by("-created_at")[start:end]
+    res = [make_activity_response(activity) for activity in activities]
     return JsonResponse(res, safe=False)
+
+
+def activity_item(request, activity_id):
+    activity = get_object_or_404(Activity, pk=activity_id)
+    return JsonResponse(make_activity_response(activity))
+
+
+def make_activity_response(activity):
+    participations = activity.participation_set.order_by(
+        "-created_at").all()
+    activity_res = plain_model(activity)
+    activity_res["members"] = [plain_model(p) for p in participations]
+    return activity_res
+
+
+def join_activity(request, activity_id):
+    activity = get_object_or_404(Activity, pk=activity_id)
+    params = {"openID": "", "avatar": "",
+                       "nickname": "", "comment": ""}
+    body = 
+    for param in params:
