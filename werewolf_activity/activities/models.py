@@ -16,6 +16,8 @@ class Activity(models.Model):
     creator_nickname = models.CharField("创建者昵称", blank=True, null=True, max_length=200)
     creator_open_id = models.TextField("创建者微信openID", blank=True, null=True)
     price = models.DecimalField("费用", default=0, decimal_places=2, max_digits=5)
+    max_participants = models.IntegerField("最大参与人数", default=15)
+    description = models.TextField("活动描述", blank=True, null=True)
 
     def __str__(self):
         return "%s（%s - %s）" % (self.name, self.start, self.end)
@@ -23,23 +25,29 @@ class Activity(models.Model):
     def has_expired(self):
         return self.end < timezone.now()
     
-    def to_plain(self):
-        normal_attrs = ["name", "address", "creator_avatar", "creator_nickname", "price"]
-        datetime_attrs = ["start", "end", "created_at"]
-        plain = {}
-        for attr in normal_attrs:
-            plain = self[attr]
-        for attr in datetime_attrs:
-            plain = datetime_to_unix(self[attr])
-        return plain
+    def get_datetime_fields(self):
+        return ["start", "end", "created_at", "updated_at"]
 
     class Meta:
         verbose_name = '狼人杀活动'
         verbose_name_plural = '狼人杀活动'
     pass
 
+class Participation(models.Model):
+    user_open_id = models.TextField("参与者微信OpenID")
+    user_avatar = models.TextField("参与者头像")
+    user_nickname = models.CharField("参与者昵称", max_length=200)
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
+    created_at = models.DateTimeField("参与时间", auto_now_add=True)
+    comment = models.TextField("留言", null=True, blank=True)
+    paid = models.BooleanField("已付款", default=False)
 
-def datetime_to_unix(dt):
-    if dt.year < 1900:
-        return 0
-    return int(dt.strftime("%s"))
+    def __str__(self):
+        return "%s - %s" % (self.activity.__str__(), self.user_nickname)
+    
+    def get_datetime_fields(self):
+        return ["created_at"]
+    
+    class Meta:
+        verbose_name = "活动参与"
+        verbose_name_plural = "活动参与"
